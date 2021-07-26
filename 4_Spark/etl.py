@@ -1,4 +1,5 @@
 import os
+import sys
 import configparser
 from datetime import datetime
 from pyspark.sql import SparkSession
@@ -143,8 +144,8 @@ def process_song_data(spark, input_data, output_data):
         output_data ([type]): [description]
     """
     # Read song data files
-    song_json_path = input_data + "/song_data/*/*/*"
-    df = spark.read.json(song_json_path)
+    song_json_path = f"{input_data}/song_data/*/*/*"
+    df = spark.read.format("json").load(song_json_path)
 
     # Create Songs table
     songs_table_folder = output_data + "/songs_table"
@@ -203,15 +204,28 @@ def process_log_data(spark, input_data, output_data):
 
 
 def main():
+    # Read configuration file
     config = configparser.ConfigParser()
     config.read('dl.cfg')
-    os.environ['AWS_ACCESS_KEY_ID'] = config.get('AWS','AWS_ACCESS_KEY_ID')
-    os.environ['AWS_SECRET_ACCESS_KEY'] = config.get('AWS','AWS_SECRET_ACCESS_KEY')
-    
+    os.environ['AWS_ACCESS_KEY_ID'] = config.get(
+        'AWS',
+        'AWS_ACCESS_KEY_ID'
+        )
+    os.environ['AWS_SECRET_ACCESS_KEY'] = config.get(
+        'AWS',
+        'AWS_SECRET_ACCESS_KEY'
+        )
+    os.environ['SPARK_HOME'] = config.get("EMR", "SPARK_HOME")
+    os.environ['PYSPARK_PYTHON'] = config.get("EMR", "PYSPARK_PYTHON")
+    input_data = config.get("ETL", "INPUT_DATA")
+    output_data = config.get("ETL", "OUTPUT_DATA")
+
+    # Create Spark Session
+    sys.path.append(config.get("EMR", "PYSPARK_PYTHON"))
+    sys.path.append(config.get("EMR", "PY4J"))
     spark = create_spark_session()
-    input_data = "s3a://udacity-dend"
-    #input_data = "./data"
-    output_data = "./spark-warehouse"
+
+    # Process song  and log data
     process_song_data(spark, input_data, output_data)
     process_log_data(spark, input_data, output_data)
 
